@@ -34,6 +34,7 @@ class GradCAMXAI(BaseXAIWrapper):
         handle_bwd = layer.register_full_backward_hook(backward_hook)
 
         tensor = sample.processed.clone().requires_grad_(True)
+        tensor = tensor.to(dtype=torch.float32)
         logits = model.model(tensor)
         score = logits[:, target_class].sum()
         model.model.zero_grad()
