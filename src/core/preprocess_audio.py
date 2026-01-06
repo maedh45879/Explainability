@@ -14,11 +14,35 @@ except Exception:  # pragma: no cover - handled with friendly message
 DEFAULT_SR = 16000
 
 
+def _load_with_soundfile(path: str) -> Tuple[torch.Tensor, int]:
+    try:
+        import soundfile as sf
+    except Exception as exc:
+        raise RuntimeError(
+            "soundfile is required to load audio when torchaudio backend is unavailable."
+        ) from exc
+    data, sr = sf.read(path, always_2d=True)
+    waveform = torch.from_numpy(data.T).to(dtype=torch.float32)
+    return waveform, sr
+
+
 def load_audio(path: str, target_sr: int = DEFAULT_SR) -> Tuple[torch.Tensor, int]:
     if torchaudio is None:
-        raise RuntimeError("torchaudio is required for audio preprocessing.")
-    waveform, sr = torchaudio.load(path)
+        waveform, sr = _load_with_soundfile(path)
+    else:
+        try:
+            waveform, sr = torchaudio.load(path)
+        except ImportError as exc:
+            if "torchcodec" not in str(exc).lower():
+                raise
+            try:
+                waveform, sr = torchaudio.load(path, backend="soundfile")
+            except Exception:
+                waveform, sr = _load_with_soundfile(path)
+    waveform = waveform.to(dtype=torch.float32)
     if sr != target_sr:
+        if torchaudio is None:
+            raise RuntimeError("torchaudio is required to resample audio.")
         resampler = torchaudio.transforms.Resample(sr, target_sr)
         waveform = resampler(waveform)
         sr = target_sr

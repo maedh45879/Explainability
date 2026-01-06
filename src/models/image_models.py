@@ -58,7 +58,9 @@ class TorchVisionWrapper(BaseModelWrapper):
         tensor = (tensor - mean) / std
         return tensor
 
-    def model_forward(self, tensor: torch.Tensor) -> torch.Tensor:
+    def model_forward(self, tensor: torch.Tensor, use_grad: bool = False) -> torch.Tensor:
+        if use_grad:
+            return self.model(tensor.float())
         with torch.no_grad():
             return self.model(tensor.float())
 
@@ -68,6 +70,9 @@ class TorchVisionWrapper(BaseModelWrapper):
 
 def build_alexnet() -> TorchVisionWrapper:
     model = torchvision.models.alexnet(weights=None)
+    for module in model.modules():
+        if isinstance(module, torch.nn.ReLU):
+            module.inplace = False
     model.classifier[6] = torch.nn.Linear(model.classifier[6].in_features, 2)
     last_conv = model.features[10]
     return TorchVisionWrapper("AlexNet", model, last_conv)

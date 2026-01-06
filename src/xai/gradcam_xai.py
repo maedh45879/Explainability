@@ -35,7 +35,10 @@ class GradCAMXAI(BaseXAIWrapper):
 
         tensor = sample.processed.clone().requires_grad_(True)
         tensor = tensor.to(dtype=torch.float32)
-        logits = model.model(tensor)
+        try:
+            logits = model.model_forward(tensor, use_grad=True)
+        except TypeError:
+            logits = model.model_forward(tensor)
         score = logits[:, target_class].sum()
         model.model.zero_grad()
         score.backward()
