@@ -80,6 +80,9 @@ def build_alexnet() -> TorchVisionWrapper:
 
 def build_densenet() -> TorchVisionWrapper:
     model = torchvision.models.densenet121(weights=None)
+    for module in model.modules():
+        if isinstance(module, torch.nn.ReLU):
+            module.inplace = False
     model.classifier = torch.nn.Linear(model.classifier.in_features, 2)
     last_conv = model.features[-1]
     return TorchVisionWrapper("DenseNet", model, last_conv)

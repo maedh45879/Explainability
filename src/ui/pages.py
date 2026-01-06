@@ -110,47 +110,67 @@ def _interactive_tab():
 
 def _on_file_change(file_obj):
     if file_obj is None:
-        return "", gr.Dropdown(choices=[], value=None), gr.CheckboxGroup(choices=[]), gr.Image(visible=False), gr.Image(visible=False), gr.Slider(visible=False)
+        return (
+            "",
+            gr.update(choices=[], value=None),
+            gr.update(choices=[], value=[]),
+            gr.Image(visible=False),
+            gr.Image(visible=False),
+            gr.Slider(visible=False),
+        )
     try:
         input_type = detect_input_type(file_obj.name)
         models = get_models_for_input_type(input_type)
         model_choices = [m.name for m in models]
         xai_choices = [x.name for x in get_xai_for(input_type, model_choices[0])] if model_choices else []
         audio_visible = input_type == "audio"
+        model_update = gr.update(choices=model_choices, value=model_choices[0]) if model_choices else gr.update(choices=[], value=None)
+        xai_update = gr.update(choices=xai_choices, value=xai_choices[:1]) if xai_choices else gr.update(choices=[], value=[])
         return (
             input_type,
-            gr.Dropdown(choices=model_choices, value=model_choices[0] if model_choices else None),
-            gr.CheckboxGroup(choices=xai_choices, value=xai_choices[:1]),
+            model_update,
+            xai_update,
             gr.Image(visible=audio_visible),
             gr.Image(visible=audio_visible),
             gr.Slider(visible=audio_visible, maximum=5.0),
         )
     except UserFacingError as exc:
-        return friendly_error(str(exc)), gr.Dropdown(choices=[], value=None), gr.CheckboxGroup(choices=[]), gr.Image(visible=False), gr.Image(visible=False), gr.Slider(visible=False)
+        return (
+            friendly_error(str(exc)),
+            gr.update(choices=[], value=None),
+            gr.update(choices=[], value=[]),
+            gr.Image(visible=False),
+            gr.Image(visible=False),
+            gr.Slider(visible=False),
+        )
 
 
 def _on_file_change_compare(file_obj):
     if file_obj is None:
-        return "", gr.Dropdown(choices=[], value=None), gr.CheckboxGroup(choices=[])
+        return "", gr.update(choices=[], value=None), gr.update(choices=[], value=[])
     try:
         input_type = detect_input_type(file_obj.name)
         models = get_models_for_input_type(input_type)
         model_choices = [m.name for m in models]
         xai_choices = [x.name for x in get_xai_for(input_type, model_choices[0])] if model_choices else []
+        model_update = gr.update(choices=model_choices, value=model_choices[0]) if model_choices else gr.update(choices=[], value=None)
+        xai_update = gr.update(choices=xai_choices, value=xai_choices[:1]) if xai_choices else gr.update(choices=[], value=[])
         return (
             input_type,
-            gr.Dropdown(choices=model_choices, value=model_choices[0] if model_choices else None),
-            gr.CheckboxGroup(choices=xai_choices, value=xai_choices[:1]),
+            model_update,
+            xai_update,
         )
     except UserFacingError as exc:
-        return friendly_error(str(exc)), gr.Dropdown(choices=[], value=None), gr.CheckboxGroup(choices=[])
+        return friendly_error(str(exc)), gr.update(choices=[], value=None), gr.update(choices=[], value=[])
 
 
 def _on_model_change(input_type: str, model_name: str):
     if not input_type or not model_name:
-        return gr.CheckboxGroup(choices=[])
+        return gr.update(choices=[], value=[])
     xai_choices = [x.name for x in get_xai_for(input_type, model_name)]
-    return gr.CheckboxGroup(choices=xai_choices, value=xai_choices[:1])
+    if not xai_choices:
+        return gr.update(choices=[], value=[])
+    return gr.update(choices=xai_choices, value=xai_choices[:1])
 
 
 def _run_single(file_obj, input_type: str, model_name: str, xai_methods: List[str], overlay_on: bool,

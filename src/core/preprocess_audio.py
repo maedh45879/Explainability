@@ -31,12 +31,10 @@ def load_audio(path: str, target_sr: int = DEFAULT_SR) -> Tuple[torch.Tensor, in
         waveform, sr = _load_with_soundfile(path)
     else:
         try:
-            waveform, sr = torchaudio.load(path)
-        except ImportError as exc:
-            if "torchcodec" not in str(exc).lower():
-                raise
+            waveform, sr = torchaudio.load(path, backend="soundfile")
+        except Exception:
             try:
-                waveform, sr = torchaudio.load(path, backend="soundfile")
+                waveform, sr = torchaudio.load(path)
             except Exception:
                 waveform, sr = _load_with_soundfile(path)
     waveform = waveform.to(dtype=torch.float32)

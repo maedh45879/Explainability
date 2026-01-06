@@ -15,9 +15,14 @@ class ShapXAI(BaseXAIWrapper):
     compatible_input_types = {"image", "audio"}
 
     def explain(self, model: BaseModelWrapper, sample: InputSample, target_class: int) -> ExplanationOutput:
-        base_img = _sample_to_array(sample, model.input_type)
+        base_img = _sample_to_array(sample, model.input_type).astype(np.float32)
+        base_shape = base_img.shape
 
-        def predict_fn(batch):
+        def predict_fn(batch_flat):
+            batch_flat = np.asarray(batch_flat, dtype=np.float32)
+            if batch_flat.ndim == 1:
+                batch_flat = batch_flat[None, :]
+            batch = batch_flat.reshape((-1,) + base_shape)
             if model.input_type == "audio" and batch.ndim == 4:
                 batch = batch.mean(axis=3)
             batch_tensor = model.tensor_from_numpy(batch)
@@ -25,11 +30,14 @@ class ShapXAI(BaseXAIWrapper):
             probs = logits.softmax(dim=1).detach().cpu().numpy()
             return probs
 
-        background = np.zeros_like(base_img)[None, ...]
+        X = base_img.reshape(-1)[None, :]
+        background = np.zeros_like(X)
         explainer = shap.KernelExplainer(predict_fn, background)
-        shap_values = explainer.shap_values(base_img[None, ...], nsamples=50)
-        # shap_values is list[class][1,H,W,C]
+        shap_values = explainer.shap_values(X, nsamples=50)
+        # shap_values is list[class][1,D]
         target_vals = shap_values[target_class][0]
+        if target_vals.ndim == 1:
+            target_vals = target_vals.reshape(base_shape)
         if target_vals.ndim == 3:
             heatmap = np.abs(target_vals).mean(axis=2)
         else:

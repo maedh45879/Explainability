@@ -15,18 +15,22 @@ class IntegratedGradientsXAI(BaseXAIWrapper):
 
     def explain(self, model: BaseModelWrapper, sample: InputSample, target_class: int) -> ExplanationOutput:
         steps = 20
-        baseline = torch.zeros_like(sample.processed)
-        scaled = [baseline + (float(i) / steps) * (sample.processed - baseline) for i in range(1, steps + 1)]
+        x = sample.processed.to(dtype=torch.float32)
+        baseline = torch.zeros_like(x)
+        scaled = [baseline + (float(i) / steps) * (x - baseline) for i in range(1, steps + 1)]
         grads = []
         for tensor in scaled:
-            tensor.requires_grad_(True)
-            logits = model.model(tensor)
+            tensor = tensor.clone().detach().requires_grad_(True)
+            try:
+                logits = model.model_forward(tensor, use_grad=True)
+            except TypeError:
+                logits = model.model_forward(tensor)
             score = logits[:, target_class].sum()
             model.model.zero_grad()
             score.backward()
             grads.append(tensor.grad.detach().clone())
         avg_grads = torch.stack(grads, dim=0).mean(dim=0)
-        ig = (sample.processed - baseline) * avg_grads
+        ig = (x - baseline) * avg_grads
         heatmap = ig.squeeze(0).abs().mean(dim=0).cpu().numpy()
         heatmap = heatmap / (heatmap.max() + 1e-6)
 
