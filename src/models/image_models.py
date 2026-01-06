@@ -60,7 +60,7 @@ class TorchVisionWrapper(BaseModelWrapper):
 
     def model_forward(self, tensor: torch.Tensor) -> torch.Tensor:
         with torch.no_grad():
-            return self.model(tensor)
+            return self.model(tensor.float())
 
     def get_last_conv_layer(self):
         return self._last_conv
