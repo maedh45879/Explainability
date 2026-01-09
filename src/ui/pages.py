@@ -37,7 +37,8 @@ def _single_tab():
     model_dropdown = gr.Dropdown(label="Model", choices=[], value=None)
     xai_dropdown = gr.CheckboxGroup(label="XAI methods", choices=[])
     gr.Markdown(_xai_help_text())
-    run_btn = gr.Button("Run")
+    compat_msg = gr.Markdown("")
+    run_btn = gr.Button("Run", interactive=False)
 
     with gr.Row():
         pred_label = gr.Textbox(label="Prediction", interactive=False)
@@ -61,12 +62,12 @@ def _single_tab():
     file_input.change(
         fn=_on_file_change,
         inputs=[file_input],
-        outputs=[input_type, model_dropdown, xai_dropdown, audio_waveform, audio_spectrogram, audio_range],
+        outputs=[input_type, model_dropdown, xai_dropdown, audio_waveform, audio_spectrogram, audio_range, run_btn, compat_msg],
     )
     model_dropdown.change(
         fn=_on_model_change,
         inputs=[input_type, model_dropdown],
-        outputs=[xai_dropdown],
+        outputs=[xai_dropdown, run_btn, compat_msg],
     )
     run_btn.click(
         fn=_run_single,
@@ -83,7 +84,9 @@ def _compare_tab():
     model_dropdown = gr.Dropdown(label="Model", choices=[], value=None)
     xai_dropdown = gr.CheckboxGroup(label="XAI methods", choices=[])
     gr.Markdown(_xai_help_text())
-    run_btn = gr.Button("Compare")
+    gr.Markdown(_compare_micro_help())
+    compat_msg = gr.Markdown("")
+    run_btn = gr.Button("Compare", interactive=False)
 
     pred_summary = gr.Markdown("### Prediction summary\nUpload a file and run compare to see predictions.")
     compare_gallery = gr.Gallery(label="Side-by-side", columns=2, rows=2)
@@ -91,12 +94,12 @@ def _compare_tab():
     file_input.change(
         fn=_on_file_change_compare,
         inputs=[file_input],
-        outputs=[input_type, model_dropdown, xai_dropdown],
+        outputs=[input_type, model_dropdown, xai_dropdown, run_btn, compat_msg],
     )
     model_dropdown.change(
         fn=_on_model_change,
         inputs=[input_type, model_dropdown],
-        outputs=[xai_dropdown],
+        outputs=[xai_dropdown, run_btn, compat_msg],
     )
     run_btn.click(
         fn=_run_compare,
@@ -120,6 +123,8 @@ def _on_file_change(file_obj):
             gr.Image(visible=False),
             gr.Image(visible=False),
             gr.Slider(visible=False),
+            gr.update(interactive=False),
+            "",
         )
     try:
         input_type = detect_input_type(file_obj.name)
@@ -129,6 +134,8 @@ def _on_file_change(file_obj):
         audio_visible = input_type == "audio"
         model_update = gr.update(choices=model_choices, value=model_choices[0]) if model_choices else gr.update(choices=[], value=None)
         xai_update = gr.update(choices=xai_choices, value=xai_choices[:1]) if xai_choices else gr.update(choices=[], value=[])
+        compat_msg = _compat_message_for_choices(input_type, model_choices, xai_choices)
+        run_update = gr.update(interactive=bool(model_choices and xai_choices))
         return (
             input_type,
             model_update,
@@ -136,6 +143,8 @@ def _on_file_change(file_obj):
             gr.Image(visible=audio_visible),
             gr.Image(visible=audio_visible),
             gr.Slider(visible=audio_visible, maximum=5.0),
+            run_update,
+            compat_msg,
         )
     except UserFacingError as exc:
         return (
@@ -145,12 +154,14 @@ def _on_file_change(file_obj):
             gr.Image(visible=False),
             gr.Image(visible=False),
             gr.Slider(visible=False),
+            gr.update(interactive=False),
+            "",
         )
 
 
 def _on_file_change_compare(file_obj):
     if file_obj is None:
-        return "", gr.update(choices=[], value=None), gr.update(choices=[], value=[])
+        return "", gr.update(choices=[], value=None), gr.update(choices=[], value=[]), gr.update(interactive=False), ""
     try:
         input_type = detect_input_type(file_obj.name)
         models = get_models_for_input_type(input_type)
@@ -158,22 +169,30 @@ def _on_file_change_compare(file_obj):
         xai_choices = [x.name for x in get_xai_for(input_type, model_choices[0])] if model_choices else []
         model_update = gr.update(choices=model_choices, value=model_choices[0]) if model_choices else gr.update(choices=[], value=None)
         xai_update = gr.update(choices=xai_choices, value=xai_choices[:1]) if xai_choices else gr.update(choices=[], value=[])
+        compat_msg = _compat_message_for_choices(input_type, model_choices, xai_choices)
+        run_update = gr.update(interactive=bool(model_choices and xai_choices))
         return (
             input_type,
             model_update,
             xai_update,
+            run_update,
+            compat_msg,
         )
     except UserFacingError as exc:
-        return friendly_error(str(exc)), gr.update(choices=[], value=None), gr.update(choices=[], value=[])
+        return friendly_error(str(exc)), gr.update(choices=[], value=None), gr.update(choices=[], value=[]), gr.update(interactive=False), ""
 
 
 def _on_model_change(input_type: str, model_name: str):
     if not input_type or not model_name:
-        return gr.update(choices=[], value=[])
+        return gr.update(choices=[], value=[]), gr.update(interactive=False), _compat_message_for_model(input_type, model_name, [])
     xai_choices = [x.name for x in get_xai_for(input_type, model_name)]
     if not xai_choices:
-        return gr.update(choices=[], value=[])
-    return gr.update(choices=xai_choices, value=xai_choices[:1])
+        return (
+            gr.update(choices=[], value=[]),
+            gr.update(interactive=False),
+            _compat_message_for_model(input_type, model_name, []),
+        )
+    return gr.update(choices=xai_choices, value=xai_choices[:1]), gr.update(interactive=True), ""
 
 
 def _run_single(file_obj, input_type: str, model_name: str, xai_methods: List[str], overlay_on: bool,
@@ -275,16 +294,16 @@ def _plot_waveform(waveform: np.ndarray, sr: int) -> Image.Image:
 def _format_prediction_summary(pred, model_name: str, xai_methods: List[str]) -> str:
     if not pred:
         return "### Prediction summary\nNo prediction available."
-    probs = pred.probs or {}
-    top_k = sorted(probs.items(), key=lambda item: item[1], reverse=True)[:3]
-    top_k_lines = "\n".join([f"- {label}: {score:.3f}" for label, score in top_k]) if top_k else "- (no probabilities available)"
-    methods = ", ".join(xai_methods) if xai_methods else "None selected"
+    methods = xai_methods or ["(none selected)"]
+    rows = "\n".join(
+        [f"| {model_name} | {method} | {pred.label} | {pred.top1:.3f} |" for method in methods]
+    )
     return (
         "### Prediction summary\n"
-        f"- Model: {model_name}\n"
-        f"- Methods: {methods}\n"
-        f"- Top-1: {pred.label} ({pred.top1:.3f})\n"
-        f"- Top-3:\n{top_k_lines}"
+        "| Model | Method | Pred | Confidence |\n"
+        "| --- | --- | --- | --- |\n"
+        f"{rows}\n"
+        "\n_Confidence is the model softmax probability for the top-1 class._"
     )
 
 
@@ -302,3 +321,30 @@ def _xai_help_text() -> str:
         "- SHAP: estimates feature contributions using Shapley values over perturbed samples.\n"
         "- Integrated Gradients: attributes importance by integrating gradients from a baseline."
     )
+
+
+def _compare_micro_help() -> str:
+    return (
+        "Micro-guide: Grad-CAM highlights regions influential for the predicted class. "
+        "LIME shows perturbation-based importance. SHAP approximates feature contributions."
+    )
+
+
+def _compat_message_for_choices(input_type: str, model_choices: List[str], xai_choices: List[str]) -> str:
+    if not input_type:
+        return ""
+    if not model_choices:
+        return "No models available for this input type."
+    if not xai_choices:
+        return "No compatible XAI methods for this model/input. Select another model."
+    return ""
+
+
+def _compat_message_for_model(input_type: str, model_name: str, xai_choices: List[str]) -> str:
+    if not input_type:
+        return "Upload a file to load models and methods."
+    if not model_name:
+        return "Select a model to load compatible XAI methods."
+    if not xai_choices:
+        return "No compatible XAI methods for this model/input. Select another model."
+    return ""

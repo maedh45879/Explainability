@@ -39,8 +39,8 @@ python app.py
 - Image: overlay toggle, opacity slider, view mode (original/heatmap/overlay), zoom crop.
 - Audio: waveform + spectrogram display, time window slider.
 
-## Limitations
-- Models use randomly initialized weights by default. Replace with trained weights for meaningful predictions.
+## Model weights & limitations
+- AlexNet, DenseNet, and AudioCNN are initialized with random weights in this repo (no pretrained checkpoints are bundled). Predictions and explanations are for interface demonstration; replace with trained weights for meaningful results.
 - SHAP is slow for large inputs; this app uses small sample sizes.
 - LIME/SHAP explanations are approximations and may be noisy.
 
