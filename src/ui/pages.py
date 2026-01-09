@@ -36,6 +36,7 @@ def _single_tab():
 
     model_dropdown = gr.Dropdown(label="Model", choices=[], value=None)
     xai_dropdown = gr.CheckboxGroup(label="XAI methods", choices=[])
+    gr.Markdown(_xai_help_text())
     run_btn = gr.Button("Run")
 
     with gr.Row():
@@ -81,8 +82,10 @@ def _compare_tab():
 
     model_dropdown = gr.Dropdown(label="Model", choices=[], value=None)
     xai_dropdown = gr.CheckboxGroup(label="XAI methods", choices=[])
+    gr.Markdown(_xai_help_text())
     run_btn = gr.Button("Compare")
 
+    pred_summary = gr.Markdown("### Prediction summary\nUpload a file and run compare to see predictions.")
     compare_gallery = gr.Gallery(label="Side-by-side", columns=2, rows=2)
 
     file_input.change(
@@ -98,7 +101,7 @@ def _compare_tab():
     run_btn.click(
         fn=_run_compare,
         inputs=[file_input, input_type, model_dropdown, xai_dropdown],
-        outputs=[compare_gallery],
+        outputs=[pred_summary, compare_gallery],
     )
 
 
@@ -193,7 +196,7 @@ def _run_single(file_obj, input_type: str, model_name: str, xai_methods: List[st
         img = _select_view_image(expl.renderable, overlay_on, opacity, view)
         if img is not None:
             img = crop_center(img, crop_x, crop_y, crop_size)
-            rendered.append((img, expl.method_name))
+            rendered.append((img, _format_caption(model_name, expl.method_name, pred)))
 
     wave_img, spec_img = _audio_visuals(sample, audio_window)
     return pred.label, f"{pred.top1:.3f}", rendered, wave_img, spec_img
@@ -201,7 +204,7 @@ def _run_single(file_obj, input_type: str, model_name: str, xai_methods: List[st
 
 def _run_compare(file_obj, input_type: str, model_name: str, xai_methods: List[str]):
     if file_obj is None or not model_name:
-        return []
+        return "### Prediction summary\nSelect a file and model to compare.", []
     models = {m.name: m for m in list_models()}
     model = models[model_name]
     sample = model.preprocess(file_obj.name)
@@ -212,8 +215,9 @@ def _run_compare(file_obj, input_type: str, model_name: str, xai_methods: List[s
     for expl in explanations:
         img = expl.renderable.get("overlay") or expl.renderable.get("heatmap") or expl.renderable.get("original")
         if img is not None:
-            rendered.append((img, expl.method_name))
-    return rendered
+            rendered.append((img, _format_caption(model_name, expl.method_name, pred)))
+    summary = _format_prediction_summary(pred, model_name, [x.name for x in xai_wrappers])
+    return summary, rendered
 
 
 def _select_view_image(renderable, overlay_on: bool, opacity: float, view: str):
@@ -266,3 +270,35 @@ def _plot_waveform(waveform: np.ndarray, sr: int) -> Image.Image:
     img = rgba[:, :, :3]
     plt.close(fig)
     return Image.fromarray(img)
+
+
+def _format_prediction_summary(pred, model_name: str, xai_methods: List[str]) -> str:
+    if not pred:
+        return "### Prediction summary\nNo prediction available."
+    probs = pred.probs or {}
+    top_k = sorted(probs.items(), key=lambda item: item[1], reverse=True)[:3]
+    top_k_lines = "\n".join([f"- {label}: {score:.3f}" for label, score in top_k]) if top_k else "- (no probabilities available)"
+    methods = ", ".join(xai_methods) if xai_methods else "None selected"
+    return (
+        "### Prediction summary\n"
+        f"- Model: {model_name}\n"
+        f"- Methods: {methods}\n"
+        f"- Top-1: {pred.label} ({pred.top1:.3f})\n"
+        f"- Top-3:\n{top_k_lines}"
+    )
+
+
+def _format_caption(model_name: str, method_name: str, pred) -> str:
+    if not pred:
+        return f"Model: {model_name} | Method: {method_name}"
+    return f"Model: {model_name} | Method: {method_name} | Pred: {pred.label} ({pred.top1:.3f})"
+
+
+def _xai_help_text() -> str:
+    return (
+        "Method guide:\n"
+        "- Grad-CAM: highlights spatial regions most responsible for the prediction.\n"
+        "- LIME: fits a local surrogate model to explain the prediction for this input.\n"
+        "- SHAP: estimates feature contributions using Shapley values over perturbed samples.\n"
+        "- Integrated Gradients: attributes importance by integrating gradients from a baseline."
+    )

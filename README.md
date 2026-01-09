@@ -6,6 +6,14 @@ Unified Explainable AI (XAI) web app for:
 
 The app auto-detects file type, filters compatible models/XAI methods, and compares explanations side-by-side.
 
+## Team
+- TD group: TBD
+- Members: TBD
+
+## Project Deliverables
+- Technical report: `report.md`
+- Compliance memo: `compliance_memo.md`
+
 ## Setup
 ```bash
 python -m venv .venv
@@ -35,6 +43,10 @@ python app.py
 - Models use randomly initialized weights by default. Replace with trained weights for meaningful predictions.
 - SHAP is slow for large inputs; this app uses small sample sizes.
 - LIME/SHAP explanations are approximations and may be noisy.
+
+## Troubleshooting
+- Audio must be WAV PCM (e.g., 16-bit) for consistent loading; compressed formats may fail preprocessing.
+- If dropdowns appear empty after switching inputs, re-upload the file to refresh the filtered model/XAI list.
 
 ## Model/XAI Registry
 Add new models or methods by editing:
