@@ -34,18 +34,27 @@ class ShapXAI(BaseXAIWrapper):
         background = np.zeros_like(X)
         explainer = shap.KernelExplainer(predict_fn, background)
         shap_values = explainer.shap_values(X, nsamples=50)
+        D = int(np.prod(base_shape))
         if isinstance(shap_values, list):
             safe_idx = min(target_class, len(shap_values) - 1)
-            sv = shap_values[safe_idx]
+            sv = np.asarray(shap_values[safe_idx])
         else:
-            sv = shap_values
-        target_vals = sv[0]
-        if target_vals.size != int(np.prod(base_shape)):
-            raise ValueError(
-                f"SHAP output size {target_vals.size} does not match input size {int(np.prod(base_shape))}."
-            )
-        if target_vals.ndim == 1:
-            target_vals = target_vals.reshape(base_shape)
+            sv = np.asarray(shap_values)
+        if sv.ndim >= 2:
+            vals = sv[0].reshape(-1)
+        else:
+            vals = sv.reshape(-1)
+        if vals.size != D:
+            if vals.size % D == 0:
+                C = vals.size // D
+                c = target_class if target_class < C else 0
+                vals = vals[c * D : (c + 1) * D]
+            if vals.size != D:
+                raise ValueError(
+                    "SHAP output size does not match input size. "
+                    f"got={vals.size}, expected={D}, shap_shape={sv.shape}."
+                )
+        target_vals = vals.astype(np.float32, copy=False).reshape(base_shape)
         if target_vals.ndim == 3:
             heatmap = np.abs(target_vals).mean(axis=2)
         else:
