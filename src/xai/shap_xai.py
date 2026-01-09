@@ -34,8 +34,16 @@ class ShapXAI(BaseXAIWrapper):
         background = np.zeros_like(X)
         explainer = shap.KernelExplainer(predict_fn, background)
         shap_values = explainer.shap_values(X, nsamples=50)
-        # shap_values is list[class][1,D]
-        target_vals = shap_values[target_class][0]
+        if isinstance(shap_values, list):
+            safe_idx = min(target_class, len(shap_values) - 1)
+            sv = shap_values[safe_idx]
+        else:
+            sv = shap_values
+        target_vals = sv[0]
+        if target_vals.size != int(np.prod(base_shape)):
+            raise ValueError(
+                f"SHAP output size {target_vals.size} does not match input size {int(np.prod(base_shape))}."
+            )
         if target_vals.ndim == 1:
             target_vals = target_vals.reshape(base_shape)
         if target_vals.ndim == 3:

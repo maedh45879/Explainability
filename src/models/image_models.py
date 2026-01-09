@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from typing import List
+from types import MethodType
 
 import numpy as np
 import torch
 import torchvision
+import torch.nn.functional as F
 
 from ..core.preprocess_image import IMAGENET_MEAN, IMAGENET_STD
 
@@ -83,6 +85,14 @@ def build_densenet() -> TorchVisionWrapper:
     for module in model.modules():
         if isinstance(module, torch.nn.ReLU):
             module.inplace = False
+    def _forward_no_inplace_relu(self, x: torch.Tensor) -> torch.Tensor:
+        features = self.features(x)
+        out = F.relu(features, inplace=False)
+        out = F.adaptive_avg_pool2d(out, (1, 1))
+        out = torch.flatten(out, 1)
+        out = self.classifier(out)
+        return out
+    model.forward = MethodType(_forward_no_inplace_relu, model)
     model.classifier = torch.nn.Linear(model.classifier.in_features, 2)
     last_conv = model.features[-1]
     return TorchVisionWrapper("DenseNet", model, last_conv)
