@@ -262,7 +262,7 @@ def _plot_waveform(waveform: np.ndarray, sr: int) -> Image.Image:
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     fig.canvas.draw()
-    img = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-    img = img.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    rgba = np.asarray(fig.canvas.buffer_rgba())
+    img = rgba[:, :, :3]
     plt.close(fig)
     return Image.fromarray(img)
