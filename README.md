@@ -7,8 +7,10 @@ Unified Explainable AI (XAI) web app for:
 The app auto-detects file type, filters compatible models/XAI methods, and compares explanations side-by-side.
 
 ## Team
-- TD group: TBD
-- Members: TBD
+- TD group: DIA 1
+- Members: 
+    - Manon AUBRY
+    - Mehdi MAMLOUK
 
 ## Project Deliverables
 - Technical report: `report.md`
@@ -72,3 +74,13 @@ If `samples/sample.jpg` or `samples/sample.wav` do not exist, the self-check wil
 
 ## Generative AI Usage Statement
 This project structure and boilerplate code were assisted by an AI coding tool. The final implementation and verification are the user's responsibility.
+
+## Generative AI Usage Statement
+
+Generative AI tools were used during this project.
+We used Codex and Chat GPT to help us with code refactoring, debugging, documentation writing, and project design.
+
+All final decisions, code implementation, and tests were done by us.
+Generative AI was used only as a support tool and not to replace our work.
+
+This statement is included to respect the project rules about the transparent use of Generative AI tools.
