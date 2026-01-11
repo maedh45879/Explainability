@@ -8,7 +8,7 @@ from PIL import Image
 
 from ..core.io import detect_input_type
 from ..core.inference import run_prediction, run_explanations
-from ..core.registry import get_models_for_input_type, get_xai_for, list_models
+from ..core.registry import get_model_by_name, get_models_for_input_type, get_xai_for
 from ..utils.errors import UserFacingError, friendly_error
 from ..utils.viz import overlay_heatmap, crop_center
 
@@ -216,8 +216,9 @@ def _run_single(file_obj, input_type: str, model_name: str, xai_method: str, ove
         return "", "", [], None, None
     if not model_name:
         return friendly_error("Select a model."), "", [], None, None
-    models = {m.name: m for m in list_models()}
-    model = models[model_name]
+    model = get_model_by_name(model_name)
+    if model is None:
+        return friendly_error(f"Model '{model_name}' is unavailable."), "", [], None, None
     sample = model.preprocess(file_obj.name)
     pred = run_prediction(model, sample)
     xai_wrappers = [x for x in get_xai_for(input_type, model_name) if x.name == xai_method] if xai_method else []
@@ -239,8 +240,9 @@ def _run_single(file_obj, input_type: str, model_name: str, xai_method: str, ove
 def _run_compare(file_obj, input_type: str, model_name: str, xai_methods: List[str]):
     if file_obj is None or not model_name:
         return "### Prediction summary\nSelect a file and model to compare.", []
-    models = {m.name: m for m in list_models()}
-    model = models[model_name]
+    model = get_model_by_name(model_name)
+    if model is None:
+        return f"### Prediction summary\nModel '{model_name}' is unavailable.", []
     sample = model.preprocess(file_obj.name)
     pred = run_prediction(model, sample)
     xai_wrappers = [x for x in get_xai_for(input_type, model_name) if x.name in (xai_methods or [])]

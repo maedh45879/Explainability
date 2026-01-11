@@ -1,3 +1,7 @@
+import warnings
+
+warnings.filterwarnings("ignore", message=".*np\\.object.*", category=FutureWarning)
+
 from src.ui.pages import build_app
 
 
