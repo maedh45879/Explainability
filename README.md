@@ -28,8 +28,15 @@ python app.py
 1) Open the local Gradio link shown in the terminal.
 2) Upload a `.wav` audio or `.png/.jpg` image.
 3) Pick a model (choices depend on input type).
-4) Select one or more XAI methods.
+4) Select one XAI method in Single Explanation, or multiple in Compare.
 5) Use the controls to adjust overlays, opacity, and zoom.
+
+## Fusion Map
+| Component | Source repo | Unified implementation |
+| --- | --- | --- |
+| Audio pipeline (mel-spectrogram + real/fake) | `Deepfake-Audio-Detection-with-XAI` | `src/models/audio_models.py`, `src/core/preprocess_audio.py` |
+| Image pipeline (AlexNet/DenseNet + Grad-CAM) | `LungCancerDetection` | `src/models/image_models.py`, `src/xai/gradcam_xai.py` |
+| Unified UI and filtering | Both | `src/ui/pages.py`, `src/core/registry.py` |
 
 ## Supported XAI Methods
 - Grad-CAM (image only)
@@ -42,7 +49,8 @@ python app.py
 - Audio: waveform + spectrogram display, time window slider.
 
 ## Model weights & limitations
-- AlexNet, DenseNet, and AudioCNN are initialized with random weights in this repo (no pretrained checkpoints are bundled). Predictions and explanations are for interface demonstration; replace with trained weights for meaningful results.
+- Deepfake saved model is loaded from `Deepfake-Audio-Detection-with-XAI/Streamlit/saved_model/model` for audio predictions.
+- AlexNet, DenseNet, and AudioCNN are initialized with random weights in this repo (no pretrained checkpoints are bundled). Image predictions and explanations are for interface demonstration; replace with trained weights for meaningful results.
 - SHAP is slow for large inputs; this app uses small sample sizes.
 - LIME/SHAP explanations are approximations and may be noisy.
 

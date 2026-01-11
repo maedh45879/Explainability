@@ -17,6 +17,8 @@ def build_app():
     with gr.Blocks(title="Unified XAI Lab") as demo:
         gr.Markdown("# Unified XAI Lab")
         gr.Markdown("Upload an audio (.wav) or image (.png/.jpg) and compare explainability methods.")
+        gr.Markdown("Audio pipeline inspired by Deepfake-Audio-Detection-with-XAI (mel-spectrogram + real/fake).")
+        gr.Markdown("Image pipeline inspired by LungCancerDetection (AlexNet/DenseNet + Grad-CAM).")
 
         with gr.Tabs():
             with gr.TabItem("Single Explanation"):
@@ -35,7 +37,7 @@ def _single_tab():
         input_type = gr.Textbox(label="Detected type", interactive=False)
 
     model_dropdown = gr.Dropdown(label="Model", choices=[], value=None)
-    xai_dropdown = gr.CheckboxGroup(label="XAI methods", choices=[])
+    xai_dropdown = gr.Radio(label="XAI method", choices=[])
     gr.Markdown(_xai_help_text())
     compat_msg = gr.Markdown("")
     run_btn = gr.Button("Run", interactive=False)
@@ -65,7 +67,7 @@ def _single_tab():
         outputs=[input_type, model_dropdown, xai_dropdown, audio_waveform, audio_spectrogram, audio_range, run_btn, compat_msg],
     )
     model_dropdown.change(
-        fn=_on_model_change,
+        fn=_on_model_change_single,
         inputs=[input_type, model_dropdown],
         outputs=[xai_dropdown, run_btn, compat_msg],
     )
@@ -97,7 +99,7 @@ def _compare_tab():
         outputs=[input_type, model_dropdown, xai_dropdown, run_btn, compat_msg],
     )
     model_dropdown.change(
-        fn=_on_model_change,
+        fn=_on_model_change_multi,
         inputs=[input_type, model_dropdown],
         outputs=[xai_dropdown, run_btn, compat_msg],
     )
@@ -119,7 +121,7 @@ def _on_file_change(file_obj):
         return (
             "",
             gr.update(choices=[], value=None),
-            gr.update(choices=[], value=[]),
+            gr.update(choices=[], value=None),
             gr.Image(visible=False),
             gr.Image(visible=False),
             gr.Slider(visible=False),
@@ -133,7 +135,7 @@ def _on_file_change(file_obj):
         xai_choices = [x.name for x in get_xai_for(input_type, model_choices[0])] if model_choices else []
         audio_visible = input_type == "audio"
         model_update = gr.update(choices=model_choices, value=model_choices[0]) if model_choices else gr.update(choices=[], value=None)
-        xai_update = gr.update(choices=xai_choices, value=xai_choices[:1]) if xai_choices else gr.update(choices=[], value=[])
+        xai_update = gr.update(choices=xai_choices, value=xai_choices[0]) if xai_choices else gr.update(choices=[], value=None)
         compat_msg = _compat_message_for_choices(input_type, model_choices, xai_choices)
         run_update = gr.update(interactive=bool(model_choices and xai_choices))
         return (
@@ -150,7 +152,7 @@ def _on_file_change(file_obj):
         return (
             friendly_error(str(exc)),
             gr.update(choices=[], value=None),
-            gr.update(choices=[], value=[]),
+            gr.update(choices=[], value=None),
             gr.Image(visible=False),
             gr.Image(visible=False),
             gr.Slider(visible=False),
@@ -182,7 +184,20 @@ def _on_file_change_compare(file_obj):
         return friendly_error(str(exc)), gr.update(choices=[], value=None), gr.update(choices=[], value=[]), gr.update(interactive=False), ""
 
 
-def _on_model_change(input_type: str, model_name: str):
+def _on_model_change_single(input_type: str, model_name: str):
+    if not input_type or not model_name:
+        return gr.update(choices=[], value=None), gr.update(interactive=False), _compat_message_for_model(input_type, model_name, [])
+    xai_choices = [x.name for x in get_xai_for(input_type, model_name)]
+    if not xai_choices:
+        return (
+            gr.update(choices=[], value=None),
+            gr.update(interactive=False),
+            _compat_message_for_model(input_type, model_name, []),
+        )
+    return gr.update(choices=xai_choices, value=xai_choices[0]), gr.update(interactive=True), ""
+
+
+def _on_model_change_multi(input_type: str, model_name: str):
     if not input_type or not model_name:
         return gr.update(choices=[], value=[]), gr.update(interactive=False), _compat_message_for_model(input_type, model_name, [])
     xai_choices = [x.name for x in get_xai_for(input_type, model_name)]
@@ -195,7 +210,7 @@ def _on_model_change(input_type: str, model_name: str):
     return gr.update(choices=xai_choices, value=xai_choices[:1]), gr.update(interactive=True), ""
 
 
-def _run_single(file_obj, input_type: str, model_name: str, xai_methods: List[str], overlay_on: bool,
+def _run_single(file_obj, input_type: str, model_name: str, xai_method: str, overlay_on: bool,
                 opacity: float, view: str, crop_size: float, crop_x: float, crop_y: float, audio_window: float):
     if file_obj is None:
         return "", "", [], None, None
@@ -205,7 +220,7 @@ def _run_single(file_obj, input_type: str, model_name: str, xai_methods: List[st
     model = models[model_name]
     sample = model.preprocess(file_obj.name)
     pred = run_prediction(model, sample)
-    xai_wrappers = [x for x in get_xai_for(input_type, model_name) if x.name in (xai_methods or [])]
+    xai_wrappers = [x for x in get_xai_for(input_type, model_name) if x.name == xai_method] if xai_method else []
     if not xai_wrappers:
         return pred.label, f"{pred.top1:.3f}", [], None, None
     explanations = run_explanations(model, sample, pred, xai_wrappers)

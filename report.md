@@ -30,10 +30,10 @@ Data flow is as follows:
 ### 4.1 Image Modality
 - Models: AlexNet and DenseNet (TorchVision variants, two-class heads).
 - Input format and preprocessing: .png/.jpg images are resized to 224x224, normalized with ImageNet mean and standard deviation, and converted to tensors.
-- Output format: class label and top-1 softmax confidence. The labels are "normal" and "cancer" as defined in the image model wrapper.
+- Output format: class label and top-1 softmax confidence. The labels are "benign" and "malignant" as defined in the image model wrapper.
 
 ### 4.2 Audio Modality
-- Model: AudioCNN (a simple convolutional neural network).
+- Models: AudioCNN (a simple convolutional neural network) and a Deepfake saved model loaded from the source repo.
 - Input format: .wav audio files.
 - Audio preprocessing pipeline: audio is loaded and normalized, optionally resampled to 16 kHz, converted to a mel spectrogram with 64 mel bins, normalized, and resized to 64x64 for the CNN. A waveform plot and a mel spectrogram image are prepared for display.
 - Output format: class label and top-1 softmax confidence. The labels are "real" and "fake" as defined in the audio model wrapper.
@@ -87,8 +87,15 @@ The registry and UI enforce compatibility by filtering models and XAI methods ba
 ## 8. Results and Limitations
 - Observations: the UI shows heatmaps and overlays that highlight regions or time-frequency areas that influence predictions, enabling qualitative inspection.
 - Image vs audio explanations: image explanations use spatial heatmaps overlaid on the original image; audio explanations operate on mel spectrogram images rather than raw waveforms.
-- Model weights: AlexNet, DenseNet, and AudioCNN are initialized with random weights in this repository. The outputs are intended for interface demonstration, not scientific or clinical interpretation. Replacing with trained weights is required for meaningful explanations.
+- Model weights: the Deepfake saved model is loaded for audio predictions. AlexNet, DenseNet, and AudioCNN are initialized with random weights in this repository. The outputs are intended for interface demonstration, not scientific or clinical interpretation. Replacing image weights with trained checkpoints is required for meaningful explanations.
 - Known limitations: LIME and SHAP are approximate and can be noisy; SHAP uses small sample sizes for speed; Integrated Gradients and Grad-CAM are limited to image models; no quantitative evaluation is provided.
+
+## 11. Fusion Mapping
+| Component | Source repo | Unified implementation |
+| --- | --- | --- |
+| Audio pipeline (mel-spectrogram + real/fake) | `Deepfake-Audio-Detection-with-XAI` | `src/models/audio_models.py`, `src/core/preprocess_audio.py` |
+| Image pipeline (AlexNet/DenseNet + Grad-CAM) | `LungCancerDetection` | `src/models/image_models.py`, `src/xai/gradcam_xai.py` |
+| Unified UI and filtering | Both | `src/ui/pages.py`, `src/core/registry.py` |
 
 ## 9. Compliance with Project Guidelines
 The implementation aligns with the required features as follows:

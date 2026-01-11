@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import List
 
-from ..models.audio_models import AudioCNNWrapper
+from ..models.audio_models import AudioCNNWrapper, DeepfakeSavedModelWrapper
 from ..models.image_models import build_alexnet, build_densenet
 from ..xai.gradcam_xai import GradCAMXAI
 from ..xai.lime_xai import LimeXAI
@@ -14,6 +14,7 @@ from ..xai.extra_xai import IntegratedGradientsXAI
 @lru_cache(maxsize=1)
 def list_models():
     return [
+        DeepfakeSavedModelWrapper(),
         AudioCNNWrapper(),
         build_alexnet(),
         build_densenet(),

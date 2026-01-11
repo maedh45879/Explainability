@@ -20,7 +20,7 @@ LOGGER = get_logger(__name__)
 
 class TorchVisionWrapper(BaseModelWrapper):
     input_type = "image"
-    labels = ["normal", "cancer"]
+    labels = ["benign", "malignant"]
 
     def __init__(self, name: str, model: torch.nn.Module, last_conv):
         self.name = name
